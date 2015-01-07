@@ -2,6 +2,7 @@ package com.aerospike.redis;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -542,7 +543,7 @@ public class RedisClient{
 	public String rpop(String key) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
 		List<String> result = (List<String>) this.asClient.execute(batchPolicy, asKey, "redis", "RPOP", Value.get(this.redisBin), Value.get(1));
-		if (result.size() == 0)
+		if (result == null || result.size() == 0)
 			return null;
 		return result.get(0);	}
 
@@ -556,7 +557,7 @@ public class RedisClient{
 	public long lpushx(String key, String value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
 		Object result = this.asClient.execute(batchPolicy, asKey, "redis", "LPUSHX", Value.get(this.redisBin), Value.get(value));
-		return ((Integer)result).longValue();
+		return ((Integer)result).longValue() -1;
 	}
 
 
@@ -595,15 +596,16 @@ public class RedisClient{
 
 	public long hsetnx(String key, String field, String value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (Long) this.asClient.execute(batchPolicy, asKey, "redis", "HSETNX", Value.get(this.redisBin), 
+		Object result = this.asClient.execute(batchPolicy, asKey, "redis", "HSETNX", Value.get(this.redisBin), 
 				Value.get(field), Value.get(value));
+		return ((Integer)result).longValue();
 	}
 
 
 	public String hmset(String key, Map<String, String> hash) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
 		return (String) this.asClient.execute(batchPolicy, asKey, "redis", "HMSET", Value.get(this.redisBin), 
-				Value.get(hash));
+				Value.getAsMap(hash));
 	}
 
 
@@ -617,35 +619,40 @@ public class RedisClient{
 
 	public long hincrBy(String key, String field, long increment) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (Long) this.asClient.execute(batchPolicy, asKey, "redis", "HINCRBY", Value.get(this.redisBin), 
+		Object result = this.asClient.execute(batchPolicy, asKey, "redis", "HINCRBY", Value.get(this.redisBin), 
 				Value.get(field), Value.get(increment));
+		return ((Integer)result).longValue();
 	}
 
 
 	public boolean hexists(String key, String field) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (Boolean) this.asClient.execute(batchPolicy, asKey, "redis", "HEXISTS", Value.get(this.redisBin), 
+		Integer result = (Integer) this.asClient.execute(batchPolicy, asKey, "redis", "HEXISTS", Value.get(this.redisBin), 
 				Value.get(field));
+		return (result == 1);
 	}
 
 
 	public Long hdel(String key, String field) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (Long) this.asClient.execute(batchPolicy, asKey, "redis", "HDEL", Value.get(this.redisBin), 
+		Object result = this.asClient.execute(batchPolicy, asKey, "redis", "HDEL", Value.get(this.redisBin), 
 				Value.get(field));
+		return ((Integer)result).longValue();
 	}
 
 
 	public Long hlen(String key) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (Long) this.asClient.execute(batchPolicy, asKey, "redis", "HLEN", Value.get(this.redisBin));
+		Object result =  this.asClient.execute(batchPolicy, asKey, "redis", "HLEN", Value.get(this.redisBin));
+		return ((Integer)result).longValue();
 	}
 
 
 	@SuppressWarnings("unchecked")
 	public Set<String> hkeys(String key) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (Set<String>) this.asClient.execute(batchPolicy, asKey, "redis", "HKEYS", Value.get(this.redisBin));
+		List<String> result = (List<String>) this.asClient.execute(batchPolicy, asKey, "redis", "HKEYS", Value.get(this.redisBin));
+		return new HashSet<String>(result);
 	}
 
 
@@ -658,7 +665,22 @@ public class RedisClient{
 
 	public Map<String, String> hgetAll(String key) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (Map<String, String>) this.asClient.execute(batchPolicy, asKey, "redis", "HGETALL", Value.get(this.redisBin));
+		List<String> result = (List<String>) this.asClient.execute(batchPolicy, asKey, "redis", "HGETALL", Value.get(this.redisBin));
+		if (result.size() % 2 != 0)
+			throw new AerospikeException("Redis hgetall: Keys and values mismatch");
+		String keyString = null;
+		boolean isKey = true;
+		Map<String, String> mapResult = new HashMap<String, String>();
+		for (String keyvalue : result){
+			if (isKey) {
+				keyString = keyvalue;
+				isKey = false;
+			} else {
+				mapResult.put(keyString, keyvalue);
+				isKey = true;
+			}
+		}
+		return mapResult;
 	}
 
 

@@ -225,14 +225,14 @@ end
 function RPOP (rec, bin, count)
 	if (EXISTS(rec, bin)) then
 		local l     = rec[bin]
-		local result_list = nil
+ 		local result_list = nil
 		if (#l <= count) then
 			rec[bin] = nil
-			result_list = rec[bin]
+			result_list = list()
 		else
-        	local start = #l - count
-			local result_list = list.drop(l, index)
-			rec[bin] = list.take(l, index)
+      local start = #l - count
+			result_list = list.drop(l, start)
+			rec[bin] = list.take(l, start)
 		end
 		UPDATE(rec)
 		if (result_list ~= nil) then
@@ -306,6 +306,10 @@ end
 function HDEL(rec, bin, field) 
 	if (EXISTS(rec, bin)) then
 		m = rec[bin]
+		fieldValue = m[field]
+		if fieldValue == nil then
+		  return 0
+		end
 		m[field] = nil 
 		rec[bin] = m
 		UPDATE(rec)
@@ -407,6 +411,7 @@ function HMGET(rec, bin, field_list)
 end
 
 function HMSET(rec, bin, field_value_map)
+  --info("Field map value: "..tostring(field_value_map))
 	local res_list = list()
 	m = rec[bin]
 	if (m == nil) then
@@ -421,8 +426,6 @@ function HMSET(rec, bin, field_value_map)
 end
 
 function HSET(rec, bin, field, value)
-  debug("Field: "..field)
-  debug("Value: "..value)
 	local created = 0
 	if (EXISTS(rec, bin)) then
 		created = 0
