@@ -172,6 +172,7 @@ function LSET (rec, bin, index, value)
 		l[index] = value
 		rec[bin] = l
 		UPDATE(rec)
+		return "OK"
 	end
 end
 
