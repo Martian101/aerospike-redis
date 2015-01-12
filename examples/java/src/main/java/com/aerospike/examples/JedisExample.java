@@ -5,7 +5,7 @@ import redis.clients.jedis.Jedis;
 public class JedisExample {
 
 	public static void main(String[] args) {
-		Jedis jedis = new Jedis("localhost");
+		Jedis jedis = new Jedis("127.0.0.1");
 		jedis.set("foo", "bar");
 		String value = jedis.get("foo");
 		jedis.rpush("list", "element");
