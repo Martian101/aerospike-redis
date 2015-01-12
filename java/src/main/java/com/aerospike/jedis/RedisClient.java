@@ -1,4 +1,4 @@
-package com.aerospike.redis;
+package com.aerospike.jedis;
 
 import java.util.ArrayList;
 import java.util.Arrays;

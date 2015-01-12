@@ -14,6 +14,7 @@ import org.junit.Test;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
+import com.aerospike.jedis.RedisClient;
 
 
 public class AllKindOfValuesCommandsTest  {
