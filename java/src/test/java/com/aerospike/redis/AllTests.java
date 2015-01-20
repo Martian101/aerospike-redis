@@ -9,4 +9,5 @@ import org.junit.runners.Suite.SuiteClasses;
 		ListCommandsTest.class  })
 public class AllTests {
 
+
 }

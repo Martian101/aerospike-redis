@@ -16,6 +16,7 @@ import java.util.Set;
 
 import javax.xml.ws.Response;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import com.aerospike.client.AerospikeClient;
@@ -36,38 +37,24 @@ public class HashesCommandsTest  {
 
 	@Test
 	public void hset() {
-		reset();
 		long status = jedis.hset("foo", "bar", "car");
 		assertEquals(1, status);
 		status = jedis.hset("foo", "bar", "foo");
 		assertEquals(0, status);
 
-		// Binary
-		//	long bstatus = jedis.hset(bfoo, bbar, bcar);
-		//	assertEquals(1, bstatus);
-		//	bstatus = jedis.hset(bfoo, bbar, bfoo);
-		//	assertEquals(0, bstatus);
 
 	}
 
 	@Test
 	public void hget() {
-		reset();
 		jedis.hset("foo", "bar", "car");
 		assertEquals(null, jedis.hget("bar", "foo"));
 		assertEquals(null, jedis.hget("foo", "car"));
 		assertEquals("car", jedis.hget("foo", "bar"));
-
-		// Binary
-		//	jedis.hset(bfoo, bbar, bcar);
-		//	assertEquals(null, jedis.hget(bbar, bfoo));
-		//	assertEquals(null, jedis.hget(bfoo, bcar));
-		//	assertArrayEquals(bcar, jedis.hget(bfoo, bbar));
 	}
 
 	@Test
 	public void hsetnx() {
-		reset();
 		long status = jedis.hsetnx("foo", "bar", "car");
 		assertEquals(1, status);
 		assertEquals("car", jedis.hget("foo", "bar"));
@@ -80,24 +67,11 @@ public class HashesCommandsTest  {
 		assertEquals(1, status);
 		assertEquals("bar", jedis.hget("foo", "car"));
 
-		// Binary
-		//	long bstatus = jedis.hsetnx(bfoo, bbar, bcar);
-		//	assertEquals(1, bstatus);
-		//	assertArrayEquals(bcar, jedis.hget(bfoo, bbar));
-		//
-		//	bstatus = jedis.hsetnx(bfoo, bbar, bfoo);
-		//	assertEquals(0, bstatus);
-		//	assertArrayEquals(bcar, jedis.hget(bfoo, bbar));
-		//
-		//	bstatus = jedis.hsetnx(bfoo, bcar, bbar);
-		//	assertEquals(1, bstatus);
-		//	assertArrayEquals(bbar, jedis.hget(bfoo, bcar));
 
 	}
 
 	@Test
 	public void hmset() {
-		reset();
 		Map<String, String> hash = new HashMap<String, String>();
 		hash.put("bar", "car");
 		hash.put("car", "bar");
@@ -106,20 +80,11 @@ public class HashesCommandsTest  {
 		assertEquals("car", jedis.hget("foo", "bar"));
 		assertEquals("bar", jedis.hget("foo", "car"));
 
-		// Binary
-		//	Map<byte[], byte[]> bhash = new HashMap<byte[], byte[]>();
-		//	bhash.put(bbar, bcar);
-		//	bhash.put(bcar, bbar);
-		//	String bstatus = jedis.hmset(bfoo, bhash);
-		//	assertEquals("OK", bstatus);
-		//	assertArrayEquals(bcar, jedis.hget(bfoo, bbar));
-		//	assertArrayEquals(bbar, jedis.hget(bfoo, bcar));
 
 	}
 
 	@Test
 	public void hmget() {
-		reset();
 		Map<String, String> hash = new HashMap<String, String>();
 		hash.put("bar", "car");
 		hash.put("car", "bar");
@@ -133,24 +98,10 @@ public class HashesCommandsTest  {
 
 		assertEquals(expected, values);
 
-		// Binary
-		//	Map<byte[], byte[]> bhash = new HashMap<byte[], byte[]>();
-		//	bhash.put(bbar, bcar);
-		//	bhash.put(bcar, bbar);
-		//	jedis.hmset(bfoo, bhash);
-		//
-		//	List<byte[]> bvalues = jedis.hmget(bfoo, bbar, bcar, bfoo);
-		//	List<byte[]> bexpected = new ArrayList<byte[]>();
-		//	bexpected.add(bcar);
-		//	bexpected.add(bbar);
-		//	bexpected.add(null);
-		//
-		//	assertEquals(bexpected, bvalues);
 	}
 
 	@Test
 	public void hincrBy() {
-		reset();
 		long value = jedis.hincrBy("foo", "bar", 1);
 		assertEquals(1, value);
 		value = jedis.hincrBy("foo", "bar", -1);
@@ -158,19 +109,10 @@ public class HashesCommandsTest  {
 		value = jedis.hincrBy("foo", "bar", -10);
 		assertEquals(-10, value);
 
-		// Binary
-		//	long bvalue = jedis.hincrBy(bfoo, bbar, 1);
-		//	assertEquals(1, bvalue);
-		//	bvalue = jedis.hincrBy(bfoo, bbar, -1);
-		//	assertEquals(0, bvalue);
-		//	bvalue = jedis.hincrBy(bfoo, bbar, -10);
-		//	assertEquals(-10, bvalue);
-
 	}
 
 	@Test
 	public void hincrByFloat() {
-		reset();
 		Double value = jedis.hincrByFloat("foo", "bar", 1.5d);
 		assertEquals((Double) 1.5d, value);
 		value = jedis.hincrByFloat("foo", "bar", -1.5d);
@@ -178,19 +120,11 @@ public class HashesCommandsTest  {
 		value = jedis.hincrByFloat("foo", "bar", -10.7d);
 		assertEquals(Double.compare(-10.7d, value), 0);
 
-		// Binary
-		//	double bvalue = jedis.hincrByFloat(bfoo, bbar, 1.5d);
-		//	assertEquals(Double.compare(1.5d, bvalue), 0);
-		//	bvalue = jedis.hincrByFloat(bfoo, bbar, -1.5d);
-		//	assertEquals(Double.compare(0d, bvalue), 0);
-		//	bvalue = jedis.hincrByFloat(bfoo, bbar, -10.7d);
-		//	assertEquals(Double.compare(-10.7d, value), 0);
 
 	}
 
 	@Test
 	public void hexists() {
-		reset();
 		Map<String, String> hash = new HashMap<String, String>();
 		hash.put("bar", "car");
 		hash.put("car", "bar");
@@ -200,21 +134,11 @@ public class HashesCommandsTest  {
 		assertFalse(jedis.hexists("foo", "foo"));
 		assertTrue(jedis.hexists("foo", "bar"));
 
-		// Binary
-		//	Map<byte[], byte[]> bhash = new HashMap<byte[], byte[]>();
-		//	bhash.put(bbar, bcar);
-		//	bhash.put(bcar, bbar);
-		//	jedis.hmset(bfoo, bhash);
-		//
-		//	assertFalse(jedis.hexists(bbar, bfoo));
-		//	assertFalse(jedis.hexists(bfoo, bfoo));
-		//	assertTrue(jedis.hexists(bfoo, bbar));
 
 	}
 
 	@Test
 	public void hdel() {
-		reset();
 		Map<String, String> hash = new HashMap<String, String>();
 		hash.put("bar", "car");
 		hash.put("car", "bar");
@@ -225,22 +149,11 @@ public class HashesCommandsTest  {
 		assertEquals(1, jedis.hdel("foo", "bar").intValue());
 		assertEquals(null, jedis.hget("foo", "bar"));
 
-		// Binary
-		//	Map<byte[], byte[]> bhash = new HashMap<byte[], byte[]>();
-		//	bhash.put(bbar, bcar);
-		//	bhash.put(bcar, bbar);
-		//	jedis.hmset(bfoo, bhash);
-		//
-		//	assertEquals(0, jedis.hdel(bbar, bfoo).intValue());
-		//	assertEquals(0, jedis.hdel(bfoo, bfoo).intValue());
-		//	assertEquals(1, jedis.hdel(bfoo, bbar).intValue());
-		//	assertEquals(null, jedis.hget(bfoo, bbar));
 
 	}
 
 	@Test
 	public void hlen() {
-		reset();
 		Map<String, String> hash = new HashMap<String, String>();
 		hash.put("bar", "car");
 		hash.put("car", "bar");
@@ -249,20 +162,11 @@ public class HashesCommandsTest  {
 		assertEquals(0, jedis.hlen("bar").intValue());
 		assertEquals(2, jedis.hlen("foo").intValue());
 
-		// Binary
-		//	Map<byte[], byte[]> bhash = new HashMap<byte[], byte[]>();
-		//	bhash.put(bbar, bcar);
-		//	bhash.put(bcar, bbar);
-		//	jedis.hmset(bfoo, bhash);
-		//
-		//	assertEquals(0, jedis.hlen(bbar).intValue());
-		//	assertEquals(2, jedis.hlen(bfoo).intValue());
 
 	}
 
 	@Test
 	public void hkeys() {
-		reset();
 		Map<String, String> hash = new LinkedHashMap<String, String>();
 		hash.put("bar", "car");
 		hash.put("car", "bar");
@@ -273,23 +177,10 @@ public class HashesCommandsTest  {
 		expected.add("bar");
 		expected.add("car");
 		assertEquals(expected, keys);
-
-		// Binary
-		//	Map<byte[], byte[]> bhash = new LinkedHashMap<byte[], byte[]>();
-		//	bhash.put(bbar, bcar);
-		//	bhash.put(bcar, bbar);
-		//	jedis.hmset(bfoo, bhash);
-		//
-		//	Set<byte[]> bkeys = jedis.hkeys(bfoo);
-		//	Set<byte[]> bexpected = new LinkedHashSet<byte[]>();
-		//	bexpected.add(bbar);
-		//	bexpected.add(bcar);
-		//	assertEquals(bexpected, bkeys);
 	}
 
 	@Test
 	public void hvals() {
-		reset();
 		Map<String, String> hash = new LinkedHashMap<String, String>();
 		hash.put("bar", "car");
 		hash.put("car", "bar");
@@ -300,22 +191,10 @@ public class HashesCommandsTest  {
 		assertTrue(vals.contains("bar"));
 		assertTrue(vals.contains("car"));
 
-		// Binary
-		//	Map<byte[], byte[]> bhash = new LinkedHashMap<byte[], byte[]>();
-		//	bhash.put(bbar, bcar);
-		//	bhash.put(bcar, bbar);
-		//	jedis.hmset(bfoo, bhash);
-		//
-		//	List<byte[]> bvals = jedis.hvals(bfoo);
-		//
-		//	assertEquals(2, bvals.size());
-		//	assertTrue(arrayContains(bvals, bbar));
-		//	assertTrue(arrayContains(bvals, bcar));
 	}
 
 	@Test
 	public void hgetAll() {
-		reset();
 		Map<String, String> h = new HashMap<String, String>();
 		h.put("bar", "car");
 		h.put("car", "bar");
@@ -326,16 +205,6 @@ public class HashesCommandsTest  {
 		assertEquals("car", hash.get("bar"));
 		assertEquals("bar", hash.get("car"));
 
-		// Binary
-		//	Map<byte[], byte[]> bh = new HashMap<byte[], byte[]>();
-		//	bh.put(bbar, bcar);
-		//	bh.put(bcar, bbar);
-		//	jedis.hmset(bfoo, bh);
-		//	Map<byte[], byte[]> bhash = jedis.hgetAll(bfoo);
-		//
-		//	assertEquals(2, bhash.size());
-		//	assertArrayEquals(bcar, bhash.get(bbar));
-		//	assertArrayEquals(bbar, bhash.get(bcar));
 	}
 
 	//    @Test
@@ -433,7 +302,8 @@ public class HashesCommandsTest  {
 	//
 	//	assertFalse(bResult.getResult().isEmpty());
 	//    }
-	private void reset(){
+	@Before
+	public void reset(){
 		jedis.del("foo");
 		jedis.del("bar");
 		jedis.del("s");

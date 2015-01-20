@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import com.aerospike.client.AerospikeClient;
@@ -42,19 +43,11 @@ public class ListCommandsTest  {
 		//	size = jedis.rpush("foo", "bar", "foo");
 		//	assertEquals(4, size);
 
-		// Binary
-		//	long bsize = jedis.rpush(bfoo, bbar);
-		//	assertEquals(1, bsize);
-		//	bsize = jedis.rpush(bfoo, bfoo);
-		//	assertEquals(2, bsize);
-		//	bsize = jedis.rpush(bfoo, bbar, bfoo);
-		//	assertEquals(4, bsize);
 
 	}
 
 	@Test
 	public void lpush() {
-		reset();
 		long size = jedis.lpush("foo", "bar");
 		assertEquals(1, size);
 		size = jedis.lpush("foo", "foo");
@@ -62,35 +55,21 @@ public class ListCommandsTest  {
 		//	size = jedis.lpush("foo", "bar", "foo");
 		//	assertEquals(4, size);
 
-		// Binary
-		//	long bsize = jedis.lpush(bfoo, bbar);
-		//	assertEquals(1, bsize);
-		//	bsize = jedis.lpush(bfoo, bfoo);
-		//	assertEquals(2, bsize);
-		//	bsize = jedis.lpush(bfoo, bbar, bfoo);
-		//	assertEquals(4, bsize);
 
 	}
 
 	@Test
 	public void llen() {
-		reset();
 		assertEquals(0, jedis.llen("foo").intValue());
 		jedis.lpush("foo", "bar");
 		jedis.lpush("foo", "car");
 		assertEquals(2, jedis.llen("foo").intValue());
 
-		// Binary
-		//	assertEquals(0, jedis.llen(bfoo).intValue());
-		//	jedis.lpush(bfoo, bbar);
-		//	jedis.lpush(bfoo, bcar);
-		//	assertEquals(2, jedis.llen(bfoo).intValue());
 
 	}
 
 	@Test
 	public void llenNotOnList() {
-		reset();
 		try {
 			jedis.set("foo", "bar");
 			jedis.llen("foo");
@@ -103,7 +82,6 @@ public class ListCommandsTest  {
 
 	@Test
 	public void lrange() {
-		reset();
 		jedis.rpush("foo", "a");
 		jedis.rpush("foo", "b");
 		jedis.rpush("foo", "c");
@@ -153,7 +131,6 @@ public class ListCommandsTest  {
 
 	@Test
 	public void lindex() {
-		reset();
 		jedis.lpush("foo", "1");
 		jedis.lpush("foo", "2");
 		jedis.lpush("foo", "3");
@@ -172,7 +149,6 @@ public class ListCommandsTest  {
 
 	@Test
 	public void lset() {
-		reset();
 		jedis.lpush("foo", "1");
 		jedis.lpush("foo", "2");
 		jedis.lpush("foo", "3");
@@ -184,7 +160,6 @@ public class ListCommandsTest  {
 
 	@Test
 	public void lrem() {
-		reset();
 		jedis.lpush("foo", "hello");
 		jedis.lpush("foo", "hello");
 		jedis.lpush("foo", "x");
@@ -211,7 +186,6 @@ public class ListCommandsTest  {
 
 	@Test
 	public void lpop() {
-		reset();
 		jedis.rpush("foo", "a");
 		jedis.rpush("foo", "b");
 		jedis.rpush("foo", "c");
@@ -235,7 +209,6 @@ public class ListCommandsTest  {
 
 	@Test
 	public void rpop() {
-		reset();
 		jedis.rpush("foo", "a");
 		jedis.rpush("foo", "b");
 		jedis.rpush("foo", "c");
@@ -259,7 +232,6 @@ public class ListCommandsTest  {
 
 	@Test
 	public void rpoplpush() {
-		reset();
 		jedis.rpush("foo", "a");
 		jedis.rpush("foo", "b");
 		jedis.rpush("foo", "c");
@@ -289,21 +261,13 @@ public class ListCommandsTest  {
 
 	@Test
 	public void lpushx() {
-		reset();
 		long status = jedis.lpushx("foo", "bar");
 		assertEquals(0, status);
 
-		jedis.lpush("foo", "a");
+		status = jedis.lpush("foo", "a");
 		status = jedis.lpushx("foo", "b");
 		assertEquals(2, status);
 
-		// Binary
-		//	long bstatus = jedis.lpushx(bfoo, bbar);
-		//	assertEquals(0, bstatus);
-		//
-		//	jedis.lpush(bfoo, bA);
-		//	bstatus = jedis.lpushx(bfoo, bB);
-		//	assertEquals(2, bstatus);
 
 	}
 
@@ -316,18 +280,10 @@ public class ListCommandsTest  {
 		status = jedis.rpushx("foo", "b");
 		assertEquals(2, status);
 
-		// Binary
-		//	long bstatus = jedis.rpushx(bfoo, bbar);
-		//	assertEquals(0, bstatus);
-		//
-		//	jedis.lpush(bfoo, bA);
-		//	bstatus = jedis.rpushx(bfoo, bB);
-		//	assertEquals(2, bstatus);
 	}
 
 	@Test
 	public void linsert() {
-		reset();
 		long status = jedis.linsert("foo", RedisClient.LIST_POSITION.BEFORE, "bar",
 				"car");
 		assertEquals(0, status);
@@ -351,7 +307,8 @@ public class ListCommandsTest  {
 	}
 
 
-	private void reset(){
+	@Before
+	public void reset(){
 		jedis.del("foo");
 		jedis.del("bar");
 		jedis.del("s");

@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import com.aerospike.client.AerospikeClient;
@@ -21,8 +22,6 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void setAndGet() {
-		reset();
-		
 		String status = jedis.set("foo", "bar");
 		assertEquals("OK", status);
 
@@ -34,8 +33,6 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void getSet() {
-		reset();
-		
 		Object value = jedis.getSet("foo", "bar");
 		assertEquals(null, value);
 		value = jedis.get("foo");
@@ -44,8 +41,6 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void mget() {
-		reset();
-				
 		List<String> values = jedis.mget("foo", "bar");
 		List<String> expected = new ArrayList<String>();
 		expected.add(null);
@@ -74,8 +69,6 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void setnx() {
-		reset();
-		
 		long status = jedis.setnx("foo", "bar");
 		assertEquals(1, status);
 		assertEquals("bar", jedis.get("foo"));
@@ -87,8 +80,6 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void setex() {
-		reset();
-		
 		String status = jedis.setex("foo", 20, "bar");
 		assertEquals("OK", status);
 		long ttl = jedis.ttl("foo");
@@ -97,8 +88,6 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void mset() {
-		reset();
-		
 		String status = jedis.mset("foo", "bar", "bar", "foo");
 		assertEquals("OK", status);
 		assertEquals("bar", jedis.get("foo"));
@@ -107,8 +96,6 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void msetnx() {
-		reset();
-		
 		long status = jedis.msetnx("foo", "bar", "bar", "foo");
 		assertEquals(1, status);
 		assertEquals("bar", jedis.get("foo"));
@@ -122,16 +109,12 @@ public class StringValuesCommandsTest  {
 
 	@Test(expected = AerospikeException.class)
 	public void incrWrongValue() {
-		reset();
-		
 		jedis.set("foo", "bar");
 		jedis.incr("foo");
 	}
 
 	@Test
 	public void incr() {
-		reset();
-		
 		jedis.set("fooI", 0);
 		long value = jedis.incr("fooI");
 		assertEquals(1, value);
@@ -141,16 +124,12 @@ public class StringValuesCommandsTest  {
 
 	@Test(expected = AerospikeException.class)
 	public void incrByWrongValue() {
-		reset();
-		
 		jedis.set("foo", "bar");
 		jedis.incrBy("foo", 2);
 	}
 
 	@Test
 	public void incrBy() {
-		reset();
-		
 		jedis.set("fooBy", 0);
 		long value = jedis.incrBy("fooBy", 2);
 		assertEquals(2, value);
@@ -160,24 +139,18 @@ public class StringValuesCommandsTest  {
 
 	@Test(expected = AerospikeException.class)
 	public void incrByFloatWrongValue() {
-		reset();
-		
 		jedis.set("foo", "bar");
 		jedis.incrByFloat("foo", 2d);
 	}
 
 	@Test(expected = AerospikeException.class)
 	public void decrWrongValue() {
-		reset();
-		
 		jedis.set("foo", "bar");
 		jedis.decr("foo");
 	}
 
 	@Test
 	public void decr() {
-		reset();
-		
 		jedis.set("foo", 0);
 		long value = jedis.decr("foo");
 		assertEquals(-1, value);
@@ -187,16 +160,12 @@ public class StringValuesCommandsTest  {
 
 	@Test(expected = AerospikeException.class)
 	public void decrByWrongValue() {
-		reset();
-		
 		jedis.set("foo", "bar");
 		jedis.decrBy("foo", 2);
 	}
 
 	@Test
 	public void decrBy() {
-		reset();
-		
 		jedis.set("foo", 0);
 		long value = jedis.decrBy("foo", 2);
 		assertEquals(-2, value);
@@ -206,8 +175,6 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void append() {
-		reset();
-		
 		long value = jedis.append("foo", "bar");
 		assertEquals(3, value);
 		assertEquals("bar", jedis.get("foo"));
@@ -218,8 +185,6 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void substr() {
-		reset();
-		
 		jedis.set("s", "This is a string");
 		assertEquals("This", jedis.substr("s", 0, 3));
 		assertEquals("ing", jedis.substr("s", -3, -1));
@@ -229,16 +194,12 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void strlen() {
-		reset();
-		
 		jedis.set("s", "This is a string");
 		assertEquals("This is a string".length(), jedis.strlen("s").intValue());
 	}
 
 	@Test
 	public void incrLargeNumbers() {
-		reset();
-		
 		jedis.set("foo", 0);
 		long value = jedis.incr("foo");
 		assertEquals(1, value);
@@ -248,8 +209,6 @@ public class StringValuesCommandsTest  {
 
 	@Test(expected = AerospikeException.class)
 	public void incrReallyLargeNumbers() {
-		reset();
-		
 		jedis.set("foo", Long.toString(Long.MAX_VALUE));
 		long value = jedis.incr("foo");
 		assertEquals(Long.MIN_VALUE, value);
@@ -257,8 +216,6 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void incrByFloat() {
-		reset();
-		
 		jedis.set("foo", 0.0);
 		double value = jedis.incrByFloat("foo", 10.5);
 		assertEquals(10.5, value, 0.0);
@@ -268,15 +225,13 @@ public class StringValuesCommandsTest  {
 
 	@Test
 	public void psetex() {
-		reset();
-		
 		String status = jedis.psetex("foo", 20000, "bar");
 		assertEquals("OK", status);
 		long ttl = jedis.ttl("foo");
 		assertTrue(ttl > 0 && ttl <= 20000);
 	}
-	
-	private void reset(){
+	@Before
+	public void reset(){
 		jedis.del("foo");
 		jedis.del("bar");
 		jedis.del("s");

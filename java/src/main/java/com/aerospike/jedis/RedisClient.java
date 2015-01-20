@@ -22,8 +22,6 @@ import com.aerospike.client.ResultCode;
 import com.aerospike.client.ScanCallback;
 import com.aerospike.client.Value;
 import com.aerospike.client.cluster.Node;
-import com.aerospike.client.policy.BatchPolicy;
-import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
@@ -35,14 +33,12 @@ public class RedisClient{
 	private AerospikeClient asClient;
 	private WritePolicy writePolicy;
 	private Policy policy;
-	private BatchPolicy batchPolicy;
 	private ScanPolicy scanPolicy;
 	private QueryPolicy queryPolicy;
 	private String namespace;
 	private String redisBin = "redis-bin";
 	private String redisSet = null;
 	private String keyBin = "redis-key-bin";
-	private InfoPolicy infoPolicy;
 	
 	private static final long AS_TIME_OFFSET = 1262304000000L;// in milliseconds
 
@@ -57,8 +53,6 @@ public class RedisClient{
 		this.policy = new Policy();
 		this.scanPolicy = new ScanPolicy();
 		this.queryPolicy = new QueryPolicy();
-		this.infoPolicy = new InfoPolicy();
-		this.batchPolicy = new BatchPolicy();
 
 	}
 
@@ -89,30 +83,32 @@ public class RedisClient{
 		this.writePolicy.timeout = timeout;
 		this.scanPolicy.timeout = timeout;
 		this.queryPolicy.timeout = timeout;
-		this.infoPolicy.timeout = timeout;
-		this.batchPolicy.timeout = timeout;
 	}
 
 	private void checkUdfRegistration(){
 		String modules = info("udf-list");
 		if (modules.contains("redis.lua"))
 			return;
-		this.asClient.register(batchPolicy, "udf/redis.lua", "redis.lua", Language.LUA);
+		this.asClient.register(null, "udf/redis.lua", "redis.lua", Language.LUA);
 	}
 	
-	private String[] infoAll(InfoPolicy infoPolicy, AerospikeClient client,
+	public AerospikeClient getAerispikeClient(){
+		return this.asClient;
+	}
+	
+	private String[] infoAll(AerospikeClient client,
 			String infoString) {
 		String[] messages = new String[client.getNodes().length];
 		int index = 0;
 		for (Node node : client.getNodes()){
-			messages[index] = Info.request(infoPolicy, node, infoString);
+			messages[index] = Info.request(node, infoString);
 		}
 		return messages;
 	}
 
 	private String info(String infoString) {
 		if (this.asClient != null && this.asClient.isConnected()){
-			String answer = Info.request(this.infoPolicy, this.asClient.getNodes()[0], infoString);
+			String answer = Info.request(this.asClient.getNodes()[0], infoString);
 			return answer;
 		} else {
 			return "Client not connected";
@@ -295,7 +291,7 @@ public class RedisClient{
 		for (int i = 0; i < keys.length; i++){
 			asKeys[i] = new Key(this.namespace, this.redisSet, Value.get(keys[i]));
 		}
-		Record[] records = this.asClient.get(this.batchPolicy, asKeys, this.redisBin);
+		Record[] records = this.asClient.get(null, asKeys, this.redisBin);
 		List<String> result = new ArrayList<String>();
 		for (Record record : records){
 			result.add((record == null) ? null : (String) record.getValue(this.redisBin));
@@ -338,12 +334,26 @@ public class RedisClient{
 
 	
 	public long expireAt(Object key, long unixTime) {
-		// TODO Auto-generated method stub
-		return 0;
+		try {
+			long now = System.currentTimeMillis();
+			Key asKey = new Key(this.namespace, this.redisSet, Value.get(key));
+			WritePolicy wp = new WritePolicy();
+			wp.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+			wp.expiration = (int) ((unixTime - now) / 1000);
+			this.asClient.touch(wp, asKey);
+			return 1;
+		} catch (AerospikeException e){
+			if (e.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR){
+				return 0;
+			} else
+				throw e;
+		}
 	}
 	public long pexpireAt(Object key, long unixTime) {
-		// TODO Auto-generated method stub
-		return 0;
+		/*
+		 * Aerospike only supports expiration units in seconds, not milliseconds
+		 */
+		return expireAt(key, unixTime);
 	}
 
 	public long persist(Object key) {
@@ -357,7 +367,7 @@ public class RedisClient{
 	public long dbSize() {
 		// ns_name=test:set_name=tweets:n_objects=68763:set-stop-write-count=0:set-evict-hwm-count=0:set-enable-xdr=use-default:set-delete=false;
 		Pattern pattern = Pattern.compile("ns_name=" + this.namespace + ":set_name=" + this.redisSet + ":n_objects=(\\d+)");
-		String[] infoStrings = infoAll(this.infoPolicy, this.asClient, "sets");
+		String[] infoStrings = infoAll(this.asClient, "sets");
 		long size = 0;
 		for (String info : infoStrings){
 			Matcher matcher = pattern.matcher(info);
@@ -445,7 +455,7 @@ public class RedisClient{
 
 	public Object getSet(Object key, Object value) {
 		Key asKey = new Key(this.namespace, this.redisSet, Value.get(key));
-		return this.asClient.execute(batchPolicy, asKey, "redis", "GETSET", Value.get(this.redisBin), Value.get(value));
+		return this.asClient.execute(this.writePolicy, asKey, "redis", "GETSET", Value.get(this.redisBin), Value.get(value));
 	}
 
 
@@ -481,59 +491,59 @@ public class RedisClient{
  */
 	public long rpush(String key, String value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Integer result =  (Integer) this.asClient.execute(batchPolicy, asKey, "redis", "RPUSH", Value.get(this.redisBin), Value.get(value));
+		Integer result =  (Integer) this.asClient.execute(this.writePolicy, asKey, "redis", "RPUSH", Value.get(this.redisBin), Value.get(value));
 		return result.longValue();
 	}
 
 
 	public long lpush(String key, String value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Integer result =  (Integer) this.asClient.execute(batchPolicy, asKey, "redis", "LPUSH", Value.get(this.redisBin), Value.get(value));
+		Integer result =  (Integer) this.asClient.execute(this.writePolicy, asKey, "redis", "LPUSH", Value.get(this.redisBin), Value.get(value));
 		return result.longValue();
 	}
 
 
 	public Long llen(String key) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Integer result =  (Integer) this.asClient.execute(batchPolicy, asKey, "redis", "LLEN", Value.get(this.redisBin));
+		Integer result =  (Integer) this.asClient.execute(this.writePolicy, asKey, "redis", "LLEN", Value.get(this.redisBin));
 		return result.longValue();
 	}
 
 
 	public List<String> lrange(String key, int low, int high) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (List<String>) this.asClient.execute(batchPolicy, asKey, "redis", "LRANGE", Value.get(this.redisBin), Value.get(low), Value.get(high));
+		return (List<String>) this.asClient.execute(this.writePolicy, asKey, "redis", "LRANGE", Value.get(this.redisBin), Value.get(low), Value.get(high));
 	}
 
 
 	public String ltrim(String key, int start, int stop) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (String) this.asClient.execute(batchPolicy, asKey, "redis", "LTRIM", Value.get(this.redisBin), Value.get(start), Value.get(stop));
+		return (String) this.asClient.execute(this.writePolicy, asKey, "redis", "LTRIM", Value.get(this.redisBin), Value.get(start), Value.get(stop));
 	}
 
 
 	public String lset(String key, int index, String value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (String) this.asClient.execute(batchPolicy, asKey, "redis", "LSET", Value.get(this.redisBin), Value.get(index), Value.get(value));
+		return (String) this.asClient.execute(this.writePolicy, asKey, "redis", "LSET", Value.get(this.redisBin), Value.get(index), Value.get(value));
 	}
 
 
 	public Object lindex(String key, int index) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return this.asClient.execute(batchPolicy, asKey, "redis", "LINDEX", Value.get(this.redisBin), Value.get(index));
+		return this.asClient.execute(this.writePolicy, asKey, "redis", "LINDEX", Value.get(this.redisBin), Value.get(index));
 	}
 
 
 	public Long lrem(String key, int index, String value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Object result =  this.asClient.execute(batchPolicy, asKey, "redis", "LREM", Value.get(this.redisBin), Value.get(index), Value.get(value));
+		Object result =  this.asClient.execute(this.writePolicy, asKey, "redis", "LREM", Value.get(this.redisBin), Value.get(index), Value.get(value));
 		return ((Integer)result).longValue();
 	}
 
 
 	public String lpop(String key) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		List<String> result = (List<String>) this.asClient.execute(batchPolicy, asKey, "redis", "LPOP", Value.get(this.redisBin), Value.get(1));
+		List<String> result = (List<String>) this.asClient.execute(this.writePolicy, asKey, "redis", "LPOP", Value.get(this.redisBin), Value.get(1));
 		if (result.size() == 0)
 			return null;
 		return result.get(0);
@@ -542,28 +552,31 @@ public class RedisClient{
 
 	public String rpop(String key) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		List<String> result = (List<String>) this.asClient.execute(batchPolicy, asKey, "redis", "RPOP", Value.get(this.redisBin), Value.get(1));
+		List<String> result = (List<String>) this.asClient.execute(this.writePolicy, asKey, "redis", "RPOP", Value.get(this.redisBin), Value.get(1));
 		if (result == null || result.size() == 0)
 			return null;
 		return result.get(0);	}
 
 
-	public String rpoplpush(String key, String value) {
-		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (String) this.asClient.execute(batchPolicy, asKey, "redis", "RPOPLPUSH", Value.get(this.redisBin), Value.get(value));
+	public String rpoplpush(String popKey, String pushKey) {
+		Key asPopKey = new Key(this.namespace, this.redisSet, popKey);
+		Key asPushKey = new Key(this.namespace, this.redisSet, pushKey);
+		List poppedValue = (List) this.asClient.execute(this.writePolicy, asPopKey, "redis", "RPOP", Value.get(this.redisBin), Value.get(1));
+		this.asClient.execute(this.writePolicy, asPushKey, "redis", "LPUSH", Value.get(this.redisBin), Value.get(poppedValue.get(0)));
+		return poppedValue.get(0).toString();
 	}
 
 
 	public long lpushx(String key, String value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Object result = this.asClient.execute(batchPolicy, asKey, "redis", "LPUSHX", Value.get(this.redisBin), Value.get(value));
-		return ((Integer)result).longValue() -1;
+		Object result = this.asClient.execute(this.writePolicy, asKey, "redis", "LPUSHX", Value.get(this.redisBin), Value.get(value));
+		return ((Integer)result).longValue();
 	}
 
 
 	public long rpushx(String key, String value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Object result = this.asClient.execute(batchPolicy, asKey, "redis", "RPUSHX", Value.get(this.redisBin), Value.get(value));
+		Object result = this.asClient.execute(this.writePolicy, asKey, "redis", "RPUSHX", Value.get(this.redisBin), Value.get(value));
 		return ((Integer)result).longValue();
 	}
 
@@ -571,8 +584,8 @@ public class RedisClient{
 	public long linsert(String key, LIST_POSITION position, String piviot,
 			String value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Object result =  this.asClient.execute(batchPolicy, asKey, "redis", "LINSERT", Value.get(this.redisBin), 
-				Value.get(position), Value.get(piviot), Value.get(value));
+		Object result =  this.asClient.execute(this.writePolicy, asKey, "redis", "LINSERT", Value.get(this.redisBin), 
+				Value.get(position.toString()), Value.get(piviot), Value.get(value));
 		return ((Integer)result).longValue();
 	}
 /*
@@ -581,7 +594,7 @@ public class RedisClient{
 
 	public long hset(String key, String field, String value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Object result =  this.asClient.execute(batchPolicy, asKey, "redis", "HSET", Value.get(this.redisBin), 
+		Object result =  this.asClient.execute(this.writePolicy, asKey, "redis", "HSET", Value.get(this.redisBin), 
 				Value.get(field), Value.get(value));
 		return ((Integer)result).longValue();
 	}
@@ -589,14 +602,14 @@ public class RedisClient{
 
 	public Object hget(String key, String field) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return this.asClient.execute(batchPolicy, asKey, "redis", "HGET", Value.get(this.redisBin), 
+		return this.asClient.execute(this.writePolicy, asKey, "redis", "HGET", Value.get(this.redisBin), 
 				Value.get(field));
 	}
 
 
 	public long hsetnx(String key, String field, String value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Object result = this.asClient.execute(batchPolicy, asKey, "redis", "HSETNX", Value.get(this.redisBin), 
+		Object result = this.asClient.execute(this.writePolicy, asKey, "redis", "HSETNX", Value.get(this.redisBin), 
 				Value.get(field), Value.get(value));
 		return ((Integer)result).longValue();
 	}
@@ -604,7 +617,7 @@ public class RedisClient{
 
 	public String hmset(String key, Map<String, String> hash) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (String) this.asClient.execute(batchPolicy, asKey, "redis", "HMSET", Value.get(this.redisBin), 
+		return (String) this.asClient.execute(this.writePolicy, asKey, "redis", "HMSET", Value.get(this.redisBin), 
 				Value.getAsMap(hash));
 	}
 
@@ -612,14 +625,14 @@ public class RedisClient{
 	@SuppressWarnings("unchecked")
 	public List<String> hmget(String key, String ...fields) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (List<String>) this.asClient.execute(batchPolicy, asKey, "redis", "HMGET", Value.get(this.redisBin), 
+		return (List<String>) this.asClient.execute(this.writePolicy, asKey, "redis", "HMGET", Value.get(this.redisBin), 
 				Value.getAsList(new ArrayList<String>(Arrays.asList(fields))));
 	}
 
 
 	public long hincrBy(String key, String field, long increment) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Object result = this.asClient.execute(batchPolicy, asKey, "redis", "HINCRBY", Value.get(this.redisBin), 
+		Object result = this.asClient.execute(this.writePolicy, asKey, "redis", "HINCRBY", Value.get(this.redisBin), 
 				Value.get(field), Value.get(increment));
 		return ((Integer)result).longValue();
 	}
@@ -627,7 +640,7 @@ public class RedisClient{
 
 	public boolean hexists(String key, String field) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Integer result = (Integer) this.asClient.execute(batchPolicy, asKey, "redis", "HEXISTS", Value.get(this.redisBin), 
+		Integer result = (Integer) this.asClient.execute(this.writePolicy, asKey, "redis", "HEXISTS", Value.get(this.redisBin), 
 				Value.get(field));
 		return (result == 1);
 	}
@@ -635,7 +648,7 @@ public class RedisClient{
 
 	public Long hdel(String key, String field) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Object result = this.asClient.execute(batchPolicy, asKey, "redis", "HDEL", Value.get(this.redisBin), 
+		Object result = this.asClient.execute(this.writePolicy, asKey, "redis", "HDEL", Value.get(this.redisBin), 
 				Value.get(field));
 		return ((Integer)result).longValue();
 	}
@@ -643,7 +656,7 @@ public class RedisClient{
 
 	public Long hlen(String key) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		Object result =  this.asClient.execute(batchPolicy, asKey, "redis", "HLEN", Value.get(this.redisBin));
+		Object result =  this.asClient.execute(this.writePolicy, asKey, "redis", "HLEN", Value.get(this.redisBin));
 		return ((Integer)result).longValue();
 	}
 
@@ -651,7 +664,7 @@ public class RedisClient{
 	@SuppressWarnings("unchecked")
 	public Set<String> hkeys(String key) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		List<String> result = (List<String>) this.asClient.execute(batchPolicy, asKey, "redis", "HKEYS", Value.get(this.redisBin));
+		List<String> result = (List<String>) this.asClient.execute(this.writePolicy, asKey, "redis", "HKEYS", Value.get(this.redisBin));
 		return new HashSet<String>(result);
 	}
 
@@ -659,13 +672,13 @@ public class RedisClient{
 	@SuppressWarnings("unchecked")
 	public List<String> hvals(String key) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (List<String>) this.asClient.execute(batchPolicy, asKey, "redis", "HVALS", Value.get(this.redisBin));
+		return (List<String>) this.asClient.execute(this.writePolicy, asKey, "redis", "HVALS", Value.get(this.redisBin));
 	}
 
 
 	public Map<String, String> hgetAll(String key) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		List<String> result = (List<String>) this.asClient.execute(batchPolicy, asKey, "redis", "HGETALL", Value.get(this.redisBin));
+		List<String> result = (List<String>) this.asClient.execute(this.writePolicy, asKey, "redis", "HGETALL", Value.get(this.redisBin));
 		if (result.size() % 2 != 0)
 			throw new AerospikeException("Redis hgetall: Keys and values mismatch");
 		String keyString = null;
@@ -686,7 +699,7 @@ public class RedisClient{
 
 	public Double hincrByFloat(String key, String field, double value) {
 		Key asKey = new Key(this.namespace, this.redisSet, key);
-		return (Double) this.asClient.execute(batchPolicy, asKey, "redis", "HINCRBYFLOAT", Value.get(this.redisBin), 
+		return (Double) this.asClient.execute(this.writePolicy, asKey, "redis", "HINCRBYFLOAT", Value.get(this.redisBin), 
 				Value.get(field), Value.get(value));
 	}
 
