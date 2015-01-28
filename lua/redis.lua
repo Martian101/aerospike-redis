@@ -33,8 +33,10 @@ local function EXISTS(rec, bin)
 	if aerospike:exists(rec)
 		and rec[bin] ~= nil 
 			and type(rec) == "userdata" then
+		--info("EXISTS true - "..tostring(bin))
 		return true
 	end
+    --info("EXISTS false - "..tostring(bin))
 	return false
 end
 
@@ -59,10 +61,13 @@ function LINDEX (rec, bin, index)
 end
 
 function LINSERT (rec, bin, pos, pivot, value)
+    info("LINSERT v:"..tostring(value).." pos:"..tostring(pos))
+
 	if (EXISTS(rec, bin)) then
 		local l     = rec[bin]
 		local new_l = list()
 		local inserted = 0
+		--info("LINSERT l:"..tostring(l).." v:"..tostring(value).." pivot:"..tostring(pos))
 		for v in list.iterator(l) do
 			if (v == pivot) and inserted ~= 1 then
 				if (pos == "BEFORE") then
@@ -88,7 +93,7 @@ function LINSERT (rec, bin, pos, pivot, value)
 			return -1
 		end
 	end
-	return -1
+	return 0
 end
 
 function LLEN (rec, bin)
@@ -109,24 +114,29 @@ function LPOP (rec, bin, count)
 	return nil
 end
 
+local function l_push(rec, bin, value)
+  local l = rec[bin]
+  if (l == nil) then
+    l = list()
+  end
+  list.prepend(l, value)
+  rec[bin] = l
+  local length = #l
+  UPDATE(rec)
+  return length
+end
+
 function LPUSH (rec, bin, value)
-	local l = rec[bin]
-	if (l == nil) then
-		l = list()
-	end
-	list.prepend(l, value)
-	rec[bin] = l
-	local length = #l
-	UPDATE(rec)
-	return length
+	return l_push(rec , bin, value)
 end
 
 function LPUSHX (rec, bin, value)
-	if (EXISTS(rec)) then
-		return LPUSH(rec, bin, value)
-	end
-	return -1
+  if (EXISTS(rec,bin)) then
+    return l_push(rec, bin, value)
+  end
+  return 0
 end
+
 
 function LPUSHALL (rec, bin, value_list)
 	local l = rec[bin]
@@ -177,21 +187,49 @@ function LSET (rec, bin, index, value)
 end
 
 function LREM (rec, bin, count, value)
+  --info("LREM b:"..tostring(bin).." c:"..tostring(count).." v:"..tostring(value))
 	if (EXISTS(rec, bin)) then
-		l = rec[bin]
+	  local removed = 0
+		local l = rec[bin]
+    info("LREM l:"..tostring(l))
 		if (count == 0) then
-			count = #l
-		end
-		for v in list.iterator(l) do
-			if (count == 0) then	
-				local l = rec[bin]
-				list.drop(l, count)
-			end
+		  local newList = list()
+      for v in list.iterator(l) do
+        if v ~= value then
+          list.append(newList, v)
+        else
+          removed = removed + 1
+        end
+      end
+      l = newList
+		elseif count > 0 then
+		  local newList = list()
+  		for v in list.iterator(l) do
+  		  if v == value and removed < count then
+  				removed = removed + 1
+  			else
+  				list.append(newList, v)
+  			end
+  		end
+  		l = newList
+		else
+      local newList = list()
+      for v in list.iterator(l) do
+        --info("LREM v:"..tostring(v).." value:"..tostring(value))
+        if v == value and removed < math.abs(count) then
+          removed = removed + 1
+        else
+          list.append(newList, v)
+        end
+      end
+      l = newList
 		end
 		rec[bin] = l
 		UPDATE(rec)
+		return removed
+	else
+	 return 0
 	end
-	return 0
 end
 
 function LTRIM (rec, bin, start, stop)
@@ -209,15 +247,20 @@ function LTRIM (rec, bin, start, stop)
 		if (start >= stop) then
 			return "-Invalid Range"
 		end
+    info("LTRIM list:"..tostring(l).." start:"..tostring(start).." stop:"..tostring(stop))
 
 		local pre_list  = list.take(l, start)
+		if pre_list == nil then
+		  pre_list = list()
+		end
 		local post_list = list.drop(l, stop)
+		info("LTRIM pre_list:"..tostring(pre_list).." post_list:"..tostring(post_list))
 		for value in list.iterator(post_list) do
 			list.append(pre_list, value)
 		end
 		rec[bin] = pre_list
 		UPDATE(rec)
-		return "+OK"
+		return "OK"
 	end
 	return "+Key/Bin Not Found"
 end
@@ -276,7 +319,7 @@ function RPOPLPUSH (rec, bin1, bin2, count)
 	return list()
 end
 
-function RPUSH (rec, bin, value)
+local function r_push (rec, bin, value)
 	local l = rec[bin]
 	if (l == nil) then
 		l = list()
@@ -288,11 +331,15 @@ function RPUSH (rec, bin, value)
 	return length
 end
 
+function RPUSH (rec, bin, value)
+    return r_push(rec, bin, value)
+end
+
 function RPUSHX (rec, bin, value)
 	if (EXISTS(rec,bin)) then
-		return RPUSH(rec, bin, value)
+		return r_push(rec, bin, value)
 	end
-	return -1
+	return 0
 end
 
 
